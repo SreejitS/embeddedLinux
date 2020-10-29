@@ -1,1 +1,55 @@
+SoCs and functional blocks : Instead of having different controllers for each peripherals the chip
+designers have integrated all of them inside a single chip and the board designers can use them as
+and when needed. It's documented in the technical reference manual.
 
+SoCs can have mac layers which needs an external PHY chip to interface with the actual port. For
+example ethernet mac in present in the SoC and need a chip to connect to RJ45 connector. The
+communication bw soc and phy is based on standard protocols.
+
+Linux Boot Requirements: 1. RBL : ROM Boot Loader - supplied by vendor, tiny, runs out of ROM and
+loads the secondary bootloader(SPL-secondary program loader or MLO-memory loader) Its loaded onto
+the ROM while taping out of the SoC. On power up, the SoC runs the RBL, which inits the stack and
+runs the main() of RBL. It generally starts a watchdog timer, withon which it should be able to load
+the SPL or else the timer expires and resets. After that it will init the PLLs to provide clocks to
+core and memory peripherals and other important peripherals. One cannot change these settings at
+this stage. The developer can alter this only when the SPL is executing. Then it searches for a
+valid SPL image in the memory devices or bootable interfaces one by one. If found, it copies the SPL
+to the internal ram and executes it. Or else the watchdog expires and resets the core. 
+
+2. SPL - This loads and executes third stage bootloader like U-Boot. Initially resides on sd card or
+external non volatile storage. Its copied by the RBL onto internal SRAM.Runs out of Internal SRAM.
+MLO inits the processor to the point where the U-boot is copied to the external RAM or DDR memory.
+It inits the UART for debug printf. It reconfigure the PLL to desired values for the application. It
+inits the DDR memory registers to use the DDR memory. MLO does some mux config to bring out
+bootloader interfaces to the pins. eg eMMC or sd card etc. Then it loads the U-boot image to DDR
+memory and executes it(passes control to it). It cannot load to internal RAM as it is kb
+range(small).  The reason that RBL cannot load the u-boot image directly to the ddr memory is
+because the vendor doesnt know the kind of the dr memory used and cant provide same rom code for it.
+It the the developer/designer that knows the kind of memory used and the fine params that must be
+used to init it and hence this is done at MLO stage.
+
+3.Third stage bootloader - Loads and executes Linux kernel. Runs out of DDR memory. This does lot of
+hardware related inits(i2c,nand,flash,ethernet,uart,usb,mmc) as u-boot supports loading linux kernel
+from all these peripherals. It then load the linux kernel from one of these boot sources to the ddr
+memory and passes the boot arguments and to it. Lots of boot behaviour can be set using uEnv.txt
+file. u-boot looks for uImage which is zImage(elf of linux kernel) + uBoot header and gets the
+location of it using the uEnv.txt file. Its generally present in the rootfs/boot folder. Uboot
+extract the info such as entry pint address/cpu arch etc from the u-boot image header and checks the
+integrity with the checksums. Also does the same for the device tree binary. Strting kernel... is
+where the control is handed over to the linux bootstrap loader from the u-boot bootloader. 
+
+4. Linux bootstrap : misc.c takes care of uncompressing the linux kernel and executing it. There is
+a kernel_entry() which jumps to the linux bootstrap code head.S along with flattended device tree
+and decompresses the kernel using misc.c , boots it and runs the init. Now the head.S of kernel
+runs, which is processor arch specific startup code(NOT Soc). It inits the vectors,page table inits
+and mmu(for virtual memory) and calls the start_kernel() for booting the linux. Both of these head.S
+is arch specific. Inside kernel's head.S, expected value : r0=0;r1=machine id;r2=atags or dtb
+pointer and mmu is off at this stage and this is called from the bootstrap decompressing code ie.
+head.S. It then calls the apt memory managemenet routines inside mm folder for initing the mmu for
+virtual memory. Then start_kernel() is called from head_common.S which calls init/main.c(arch
+independent code) of linux kernel
+
+5.In init/main.c lots of kernel inits take place ie. timers, console, mmu and finally launches the
+first user program ie. init. At the end of start_kernel(), it calls rest_init() which creates two
+threads kernel_init(used to spawn init() and has pid of 1) and kthreadd(used to spawn other kernel
+threads), after which it starts the scheduler and cpu goes to cpu idle loop. Inside kernel_init, it frees all the memory used by prev inits and it wont be called again. Init() inits the rootfs and things are ready to run.
