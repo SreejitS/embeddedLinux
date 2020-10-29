@@ -52,4 +52,6 @@ independent code) of linux kernel
 5.In init/main.c lots of kernel inits take place ie. timers, console, mmu and finally launches the
 first user program ie. init. At the end of start_kernel(), it calls rest_init() which creates two
 threads kernel_init(used to spawn init() and has pid of 1) and kthreadd(used to spawn other kernel
-threads), after which it starts the scheduler and cpu goes to cpu idle loop. Inside kernel_init, it frees all the memory used by prev inits and it wont be called again. Init() inits the rootfs and things are ready to run.
+threads), after which it starts the scheduler and cpu goes to cpu idle loop. Inside kernel_init, it
+frees all the memory used by prev inits and it wont be called again. Init() inits the rootfs and
+things are ready to run.
