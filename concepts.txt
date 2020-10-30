@@ -34,9 +34,9 @@ from all these peripherals. It then load the linux kernel from one of these boot
 memory and passes the boot arguments and to it. Lots of boot behaviour can be set using uEnv.txt
 file. u-boot looks for uImage which is zImage(elf of linux kernel) + uBoot header and gets the
 location of it using the uEnv.txt file. Its generally present in the rootfs/boot folder. Uboot
-extract the info such as entry pint address/cpu arch etc from the u-boot image header and checks the
-integrity with the checksums. Also does the same for the device tree binary. Strting kernel... is
-where the control is handed over to the linux bootstrap loader from the u-boot bootloader. 
+extract the info such as entry point address/cpu arch etc from the u-boot image header and checks
+the integrity with the checksums. Also does the same for the device tree binary. Strting kernel...
+is where the control is handed over to the linux bootstrap loader from the u-boot bootloader. 
 
 4. Linux bootstrap : misc.c takes care of uncompressing the linux kernel and executing it. There is
 a kernel_entry() which jumps to the linux bootstrap code head.S along with flattended device tree
@@ -55,3 +55,16 @@ threads kernel_init(used to spawn init() and has pid of 1) and kthreadd(used to 
 threads), after which it starts the scheduler and cpu goes to cpu idle loop. Inside kernel_init, it
 frees all the memory used by prev inits and it wont be called again. Init() inits the rootfs and
 things are ready to run.
+
+DEVICE TREE The kernel has no idea about the different peripherals present on the board and most of
+the traditional peripheral(i2c,gpios,spi) are non-self-discoverable(dynamic discoverability) by its
+simple nature. USB is self discoverable. These non-self-discoverable devices are called platform
+devices. Primitive way is to add all these into a board specfic bsp file with all its init. This
+method will be a static way of doing things. This means you have to recompile the kernel when there
+are new platform devices and its a mess if there are multiple revisions of the same board with diff
+platform devices as their is a dependency of the platform device drivers with the kernel image. So
+the solution provided by the arm community is to encode this info in an device tree source file(to
+be provided by the vendor of the board), which will be compiled using device tree compiler to
+generate device tree binary. In this way there no need to compile the kernel each time. There will
+be a dts/dtb file for each board versions which will be loaded at runtime to enummerate the platform
+deviced. The lead address is passed as a param when bootstraping linux.
