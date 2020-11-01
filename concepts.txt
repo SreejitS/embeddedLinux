@@ -68,3 +68,22 @@ be provided by the vendor of the board), which will be compiled using device tre
 generate device tree binary. In this way there no need to compile the kernel each time. There will
 be a dts/dtb file for each board versions which will be loaded at runtime to enummerate the platform
 deviced. The lead address is passed as a param when bootstraping linux.
+TLDR; It is an enumeration of all the devices that are non discoverable and how to initialise
+them,their power profiles etc.
+
+Linux source Tree: All the architecture,soc and board specific code is in linux_src/arch/ folder.
+The core specific code handle mm, cache memory, exceptions will go into arch/arm/kernel ;
+arch/arm/mm ; arch/arm/boot/compressed ; arch/arm/boot/lib. The SoC and platform specific code goes
+into arch/arm/mach-<*>.
+
+This has two parts - board related and machine(SoC) shared common code. The
+board file is a c source code which explains various peripherals outside SoC, on the board(eg
+ethernet PHY,LEDs, EEPROM etc.). The machine shared common code is for on-chip peripherals(pin
+muxing,power managemenet,clocking,i2c,uarts,usb etc.). This file is same across all SoC's sharing
+the same IP. After the intro of dt, seperate board files were not needed. Now there will be a
+generic board files(and maybe some legacy board files) which will be used with any boatd along with
+dtb, and soc files. This file will have one generic init function and multiple entires for different
+boards. In the device tree data structure, it compares the .dt_compat field and know all the
+functions needed to init the platform/board.
+
+SoC specific drivers are found in linux_src/drivers and its huge.
